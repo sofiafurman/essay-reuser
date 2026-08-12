@@ -33,13 +33,14 @@ def view_essays():
     html = "<h1>My Library</h1>"
 
     for essay in essays:
-        essay_id, application, prompt, response = essay
+        essay_id, application, prompt, response, summary = essay
 
         html += f"""
             <hr>
-            <p><strong>Application:</strong> {application}</h2>
+            <p><strong>Application:</strong> {application}</p>
             <p><strong>Prompt:</strong> {prompt}</p>
             <p><strong>Response:</strong> {response}</p>
+            <p><strong>Summary:</strong> {summary}</p>
         """
     return html
 

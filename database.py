@@ -36,7 +36,7 @@ def get_essays():
     conn = sqlite3.connect(db_path)
 
     essays = conn.execute(
-        "SELECT id, application, prompt, response FROM essays"
+        "SELECT id, application, prompt, response, summary FROM essays"
     ).fetchall()
 
     conn.close()
