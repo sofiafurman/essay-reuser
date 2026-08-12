@@ -10,22 +10,23 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         application TEXT NOT NULL,
         prompt TEXT NOT NULL,
-        response TEXT
+        response TEXT,
+        summary TEXT
     )
     """)
 
     conn.commit()
     conn.close()
 
-def save_essays(application, prompt, response):
+def save_essays(application, prompt, response, summary):
     conn = sqlite3.connect(db_path)
 
     conn.execute(
         """
-        INSERT INTO essays (application, prompt, response)
-        VALUES (?, ?, ?)
+        INSERT INTO essays (application, prompt, response, summary)
+        VALUES (?, ?, ?, ?)
         """,
-        (application, prompt, response)
+        (application, prompt, response, summary)
     )
 
     conn.commit()

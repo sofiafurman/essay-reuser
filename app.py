@@ -1,5 +1,6 @@
 from flask import Flask, request
 from database import init_db, save_essays, get_essays
+from ai import summarize_essay
 
 app = Flask(__name__)
 
@@ -49,8 +50,12 @@ def create_essay():
     application = request.form["application"]
     prompt = request.form["prompt"]
     response = request.form["response"]
+    
 
-    save_essay(application, prompt, response)
+    summary = summarize_essay(prompt, response)
+
+
+    save_essays(application, prompt, response, summary)
 
     return "Essay saved!"
 
