@@ -1,6 +1,6 @@
 from flask import Flask, request
 from database import init_db, save_essays, get_essays
-from ai import summarize_essay
+from ai import create_embedding
 
 app = Flask(__name__)
 
@@ -33,14 +33,13 @@ def view_essays():
     html = "<h1>My Library</h1>"
 
     for essay in essays:
-        essay_id, application, prompt, response, summary = essay
+        essay_id, application, prompt, response, embedding = essay
 
         html += f"""
             <hr>
             <p><strong>Application:</strong> {application}</p>
             <p><strong>Prompt:</strong> {prompt}</p>
             <p><strong>Response:</strong> {response}</p>
-            <p><strong>Summary:</strong> {summary}</p>
         """
     return html
 
@@ -52,11 +51,9 @@ def create_essay():
     prompt = request.form["prompt"]
     response = request.form["response"]
     
+    embedding = create_embedding(response)
 
-    summary = summarize_essay(prompt, response)
-
-
-    save_essays(application, prompt, response, summary)
+    save_essays(application, prompt, response, embedding)
 
     return "Essay saved!"
 

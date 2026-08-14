@@ -1,4 +1,5 @@
 import sqlite3
+import json
 
 db_path = "reuser.db"
 
@@ -11,22 +12,24 @@ def init_db():
         application TEXT NOT NULL,
         prompt TEXT NOT NULL,
         response TEXT,
-        summary TEXT
+        embedding TEXT
     )
     """)
 
     conn.commit()
     conn.close()
 
-def save_essays(application, prompt, response, summary):
+def save_essays(application, prompt, response, embedding):
     conn = sqlite3.connect(db_path)
+
+    embedding_json = json.dumps(embedding)
 
     conn.execute(
         """
-        INSERT INTO essays (application, prompt, response, summary)
+        INSERT INTO essays (application, prompt, response, embedding)
         VALUES (?, ?, ?, ?)
         """,
-        (application, prompt, response, summary)
+        (application, prompt, response, embedding_json)
     )
 
     conn.commit()
@@ -36,7 +39,7 @@ def get_essays():
     conn = sqlite3.connect(db_path)
 
     essays = conn.execute(
-        "SELECT id, application, prompt, response, summary FROM essays"
+        "SELECT id, application, prompt, response, embedding FROM essays"
     ).fetchall()
 
     conn.close()
