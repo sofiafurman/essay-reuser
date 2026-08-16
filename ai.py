@@ -5,11 +5,24 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from pydantic import BaseModel
+from typing import List, Literal
+
 load_dotenv()
 
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
+
+class ChunkMatch(BaseModel):
+    essay_id: int
+    chunk_index: int
+    classification: Literal["REUSE", "ADAPT"]
+    reason: str
+    adaptation_needed: str
+
+class MatchAnalysis(BaseModel):
+    matches: List[ChunkMatch]
 
 def rank_essays(new_prompt, essays):
     prompt_embedding = create_embedding(new_prompt)
@@ -98,6 +111,61 @@ def cosine_similarity(vec_a, vec_b): #compare embeddings
 
     return dot_product / (magnitude_a * magnitude_b)
 
+def analyze_matches(new_prompt, ranked_chunks):
+    top_chunks = ranked_chunks[:5]
+
+    retrieved_text = ""
+
+    for chunk in top_chunks:
+        retrieved_text += f"""
+ESSAY ID: {chunk["essay_id"]}
+CHUNK {chunk["chunk_index"]}:
+{chunk["text"]}
+
+---
+"""
+
+    instructions = f"""
+You are helping a student reuse material from their previous application
+essays for a new application prompt.
+
+NEW PROMPT:
+{new_prompt}
+
+RETRIEVED PREVIOUS WRITING:
+{retrieved_text}
+
+Analyze which retrieved material is genuinely useful for answering the
+new prompt.
+
+For each useful piece of material:
+- identify the essay ID and chunk
+- classify it as REUSE, ADAPT, or WEAK
+- explain briefly why it is relevant
+- explain what would need to change for the new prompt
+
+Only include material classified as REUSE or ADAPT.
+
+REUSE means the existing material directly addresses an important part
+of the new prompt and could be reused with relatively minor changes.
+
+ADAPT means the underlying experience or idea is useful, but its framing,
+emphasis, or reflection needs meaningful changes.
+
+Do not include weak or irrelevant material.
+Do not invent experiences, details, outcomes, or reflections.
+Do not write a new essay.
+"""
+
+    result = client.responses.parse(
+        model="gpt-5-nano",
+        input=instructions,
+        text_format = MatchAnalysis
+    )
+
+    return result.output_parsed
+
+
 '''def summarize_essay(prompt, response):
     instructions = f"""
     Analyze the application response below for future reuse in other
@@ -137,15 +205,13 @@ if __name__ == "__main__":
 
     chunks = get_chunks()
 
-    prompt = """
+    new_prompt = """
     Describe an experience communicating with someone whose
     background or perspective differed from your own.
     """
 
-    ranked = rank_chunks(prompt, chunks)
+    ranked = rank_chunks(new_prompt, chunks)
 
-    for chunk in ranked:
-        print("\nScore:", round(chunk["similarity_score"], 3))
-        print("Essay ID:", chunk["essay_id"])
-        print("Chunk:", chunk["chunk_index"])
-        print(chunk["text"])
+    analysis = analyze_matches(new_prompt, ranked)
+
+    print(analysis)
