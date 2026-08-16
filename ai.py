@@ -37,12 +37,59 @@ def rank_essays(new_prompt, essays):
 
     return ranked
 
-def create_embedding(text):
+def rank_chunks(new_prompt, chunks):
+    prompt_embedding = create_embedding(new_prompt)
+    ranked = []
+
+    for chunk in chunks:
+        chunk_id, essay_id, chunk_index, text, embedding_json = chunk
+
+        chunk_embedding = json.loads(embedding_json)
+
+        similarity_score = cosine_similarity(prompt_embedding, chunk_embedding)
+
+        ranked.append({
+            "chunk_id": chunk_id,
+            "essay_id": essay_id,
+            "chunk_index": chunk_index,
+            "text": text,
+            "similarity_score": similarity_score
+        })
+
+
+    ranked.sort(
+            key=lambda essay: essay["similarity_score"],
+            reverse=True
+        )
+
+    return ranked
+
+def create_embedding(text):  
     result = client.embeddings.create(
         model = "text-embedding-3-small",
         input=text
     )
     return result.data[0].embedding
+
+def create_embeddings(texts):
+    result = client.embeddings.create(
+        model="text-embedding-3-small",
+        input=texts
+    )
+
+    return [item.embedding for item in result.data]
+
+def split_essay(text):
+    paras = text.split("\n")
+
+    chunks = []
+
+    for para in paras:
+        para = para.strip()
+        if para:
+            chunks.append(para)
+
+    return chunks
 
 def cosine_similarity(vec_a, vec_b): #compare embeddings
     dot_product = sum(a * b for a, b in zip(vec_a, vec_b))
@@ -86,25 +133,19 @@ def cosine_similarity(vec_a, vec_b): #compare embeddings
     return result.output_text'''
 
 if __name__ == "__main__":
-    from database import get_essays
+    from database import get_chunks
 
-    essays = get_essays()
+    chunks = get_chunks()
 
-    new_prompt = """
-    Describe a time you realized your first approach to a problem was wrong.
-    What did you change, and what did you learn?
+    prompt = """
+    Describe an experience communicating with someone whose
+    background or perspective differed from your own.
     """
-    prompts = ["Tell us about a way you have helped make a community more accessible or welcoming to others.", "Describe an experience that taught you the importance of using evidence when making decisions.", "Tell us about an experience that changed how you think about making a meaningful impact."]
 
-    for prompt in prompts:
-        print("\nPROMPT:", prompt)
-        ranked = rank_essays(prompt, essays)
-        for essay in ranked:
-            print(
-                essay["application"],
-                round(essay["similarity_score"], 3)
-            )
-    '''test_prompt = "Describe a time you demonstrated leadership."
-    test_response = """Lorem ipsum"""
-    summary = summarize_essay(test_prompt, test_response)
-    print(summary)'''
+    ranked = rank_chunks(prompt, chunks)
+
+    for chunk in ranked:
+        print("\nScore:", round(chunk["similarity_score"], 3))
+        print("Essay ID:", chunk["essay_id"])
+        print("Chunk:", chunk["chunk_index"])
+        print(chunk["text"])

@@ -1,6 +1,6 @@
 from flask import Flask, request
-from database import init_db, save_essays, get_essays
-from ai import create_embedding
+from database import init_db, save_essays, get_essays, save_chunks
+from ai import create_embedding, split_essay, create_embeddings
 
 app = Flask(__name__)
 
@@ -51,9 +51,13 @@ def create_essay():
     prompt = request.form["prompt"]
     response = request.form["response"]
     
-    embedding = create_embedding(response)
+    embedding = create_embedding(response) #whole essay
 
-    save_essays(application, prompt, response, embedding)
+    essay_id = save_essays(application, prompt, response, embedding)
+
+    chunks = split_essay(response)
+    chunk_embeddings = create_embeddings(chunks)
+    save_chunks(essay_id, chunks, chunk_embeddings)
 
     return "Essay saved!"
 
