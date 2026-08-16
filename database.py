@@ -26,7 +26,29 @@ def init_db():
         FOREIGN KEY (essay_id) REFERENCES essays(id)
         )
         """)
-    
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS prompts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            application TEXT NOT NULL,
+            prompt TEXT NOT NULL,
+            embedding TEXT NOT NULL
+        )
+            """)
+
+    conn.execute("""
+            CREATE TABLE IF NOT EXISTS analyses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                prompt_id INTEGER NOT NULL,
+                essay_id INTEGER NOT NULL,
+                chunk_index INTEGER NOT NULL,
+                classification TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                adaptation_needed TEXT NOT NULL,
+                FOREIGN KEY (prompt_id) REFERENCES prompts(id),
+                FOREIGN KEY (essay_id) REFERENCES essays(id)
+            )
+                """)
 
     conn.commit()
     conn.close()
@@ -50,6 +72,52 @@ def save_essays(application, prompt, response, embedding):
     conn.close()
 
     return essay_id
+
+def save_prompt(application, prompt, embedding):
+    conn = sqlite3.connect(db_path)
+
+    embedding_json = json.dumps(embedding)
+
+    cursor = conn.execute(
+        """
+        INSERT INTO prompts (application, prompt, embedding)
+        VALUES (?, ?, ?)
+        """,
+        (application, prompt, embedding_json)
+    )
+    prompt_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
+    return prompt_id
+
+
+def get_prompts():
+    conn = sqlite3.connect(db_path)
+
+    prompts = conn.execute(
+        "SELECT id, application, prompt, embedding FROM prompts"
+    ).fetchall()
+
+    conn.close()
+
+    return prompts
+
+def get_analyses(prompt_id):
+    conn = sqlite3.connect(db_path)
+
+    analyses = conn.execute(
+        """
+        SELECT essay_id, chunk_index, classification, reason, adaptation_needed
+        FROM analyses
+        WHERE prompt_id = ?
+        """,
+        (prompt_id,)
+    ).fetchall()
+
+    conn.close()
+
+    return analyses
 
 def get_essays():
     conn = sqlite3.connect(db_path)
@@ -81,6 +149,34 @@ def save_chunks(essay_id, chunks, embeddings):
     conn.commit()
     conn.close()
 
+def save_analysis(prompt_id, analysis):
+    conn = sqlite3.connect(db_path)
+
+    for match in analysis.matches:
+        conn.execute(
+            """
+            INSERT INTO analyses (
+                prompt_id,
+                essay_id,
+                chunk_index,
+                classification,
+                reason,
+                adaptation_needed
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                prompt_id,
+                match.essay_id,
+                match.chunk_index,
+                match.classification,
+                match.reason,
+                match.adaptation_needed
+            )
+        )
+    conn.commit()
+    conn.close()
+        
 
 def get_chunks():
     conn = sqlite3.connect(db_path)

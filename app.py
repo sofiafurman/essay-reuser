@@ -1,7 +1,16 @@
 from flask import Flask, request
-from database import init_db, save_essays, get_essays, save_chunks
-from ai import create_embedding, split_essay, create_embeddings
 
+
+
+from database import (
+    init_db, save_essays, get_essays, save_chunks,
+    save_prompt, get_prompts, get_chunks, save_analysis, get_analyses
+)
+
+from ai import (
+    create_embedding, split_essay, create_embeddings,
+    rank_chunks, analyze_matches
+)
 app = Flask(__name__)
 
 init_db()
@@ -23,8 +32,24 @@ def home():
 
             <button type="submit">Save Essay</button>
         </form>
+
+        <hr>
+
+        <h2>Add New Prompt</h2>
+
+        <form method="POST" action="/prompts">
+            <label>Application</label><br>
+            <input name="application" required><br><br>
+
+            <label>Prompt</label><br>
+            <textarea name="prompt" required></textarea><br><br>
+
+            <button type="submit">Analyze Prompt</button>
+        </form>
     
     """
+
+
 
 @app.route("/essays", methods=["GET"])
 def view_essays():
@@ -60,6 +85,56 @@ def create_essay():
     save_chunks(essay_id, chunks, chunk_embeddings)
 
     return "Essay saved!"
+
+
+@app.route("/prompts", methods=["POST"])
+def create_prompt():
+    application = request.form["application"]
+    prompt = request.form["prompt"]
+    
+    embedding = create_embedding(prompt) 
+    prompt_id = save_prompt(application, prompt, embedding)
+
+    chunks = get_chunks()
+    ranked_chunks = rank_chunks(embedding, chunks)
+    
+    analysis = analyze_matches(prompt, ranked_chunks)
+
+    save_analysis(prompt_id, analysis)
+    return "Prompt saved + analyzed!"
+
+@app.route("/prompts", methods=["GET"])
+def view_prompt_analyses():
+    prompts = get_prompts()
+
+
+    html = "<h1>My Prompt Analyses</h1>"
+
+    for prompt in prompts:
+        prompt_id, application, prompt_text, embedding_json = prompt
+
+        analyses = get_analyses(prompt_id)
+
+        html += f"""
+            <hr>
+            <p><strong>Application:</strong> {application}</p>
+            <p><strong>Prompt:</strong> {prompt_text}</p>
+            
+        """
+
+        for analysis in analyses:
+            essay_id, chunk_index, classification, reason, adaptation_needed = analysis
+            html += f"""
+                <p>
+                    <strong>{classification}</strong><br>
+                    Essay {essay_id}, Chunk {chunk_index}<br>
+                    {reason}<br>
+                    <strong>Adaptation:</strong> {adaptation_needed}
+                </p>
+            """
+    return html
+
+
 
 if __name__ == "__main__":
     app.run(debug=True)

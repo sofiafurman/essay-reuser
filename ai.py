@@ -6,7 +6,9 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from pydantic import BaseModel
-from typing import List, Literal
+from typing import List, Literal, Optional
+
+from database import get_chunks
 
 load_dotenv()
 
@@ -19,7 +21,7 @@ class ChunkMatch(BaseModel):
     chunk_index: int
     classification: Literal["REUSE", "ADAPT"]
     reason: str
-    adaptation_needed: str
+    adaptation_needed: Optional[str]
 
 class MatchAnalysis(BaseModel):
     matches: List[ChunkMatch]
@@ -50,8 +52,7 @@ def rank_essays(new_prompt, essays):
 
     return ranked
 
-def rank_chunks(new_prompt, chunks):
-    prompt_embedding = create_embedding(new_prompt)
+def rank_chunks(prompt_embedding, chunks):
     ranked = []
 
     for chunk in chunks:
@@ -199,19 +200,3 @@ Do not write a new essay.
     )
 
     return result.output_text'''
-
-if __name__ == "__main__":
-    from database import get_chunks
-
-    chunks = get_chunks()
-
-    new_prompt = """
-    Describe an experience communicating with someone whose
-    background or perspective differed from your own.
-    """
-
-    ranked = rank_chunks(new_prompt, chunks)
-
-    analysis = analyze_matches(new_prompt, ranked)
-
-    print(analysis)
