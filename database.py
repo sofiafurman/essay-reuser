@@ -53,6 +53,49 @@ def init_db():
     conn.commit()
     conn.close()
 
+def get_prompt(prompt_id):
+    conn = sqlite3.connect(db_path)
+
+    prompt = conn.execute(
+        """
+        SELECT id, application, prompt
+        FROM prompts
+        WHERE id = ?
+        """,
+        (prompt_id,)
+    ).fetchone()
+
+    conn.close()
+
+    return prompt
+
+def get_analysis_details(prompt_id):
+    conn = sqlite3.connect(db_path)
+
+    analyses = conn.execute(
+        """
+        SELECT
+            analyses.classification,
+            analyses.reason,
+            analyses.adaptation_needed,
+            essays.application,
+            essays.prompt,
+            essay_chunks.text
+        FROM analyses
+        JOIN essays
+            ON analyses.essay_id = essays.id
+        JOIN essay_chunks
+            ON analyses.essay_id = essay_chunks.essay_id
+            AND analyses.chunk_index = essay_chunks.chunk_index
+        WHERE analyses.prompt_id = ?
+        """,
+        (prompt_id,)
+    ).fetchall()
+
+    conn.close()
+
+    return analyses
+
 def save_essays(application, prompt, response, embedding):
     conn = sqlite3.connect(db_path)
 
@@ -90,7 +133,6 @@ def save_prompt(application, prompt, embedding):
     conn.close()
 
     return prompt_id
-
 
 def get_prompts():
     conn = sqlite3.connect(db_path)
@@ -177,7 +219,6 @@ def save_analysis(prompt_id, analysis):
     conn.commit()
     conn.close()
         
-
 def get_chunks():
     conn = sqlite3.connect(db_path)
 

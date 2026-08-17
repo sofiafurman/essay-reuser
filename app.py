@@ -1,10 +1,10 @@
-from flask import Flask, request
-
+from flask import Flask, request, redirect
 
 
 from database import (
     init_db, save_essays, get_essays, save_chunks,
-    save_prompt, get_prompts, get_chunks, save_analysis, get_analyses
+    save_prompt, get_prompts, get_chunks, save_analysis,
+    get_analyses, get_prompt, get_analysis_details
 )
 
 from ai import (
@@ -49,8 +49,6 @@ def home():
     
     """
 
-
-
 @app.route("/essays", methods=["GET"])
 def view_essays():
     essays = get_essays()
@@ -68,8 +66,6 @@ def view_essays():
         """
     return html
 
-
-
 @app.route("/essays", methods=["POST"])
 def create_essay():
     application = request.form["application"]
@@ -86,7 +82,6 @@ def create_essay():
 
     return "Essay saved!"
 
-
 @app.route("/prompts", methods=["POST"])
 def create_prompt():
     application = request.form["application"]
@@ -101,7 +96,7 @@ def create_prompt():
     analysis = analyze_matches(prompt, ranked_chunks)
 
     save_analysis(prompt_id, analysis)
-    return "Prompt saved + analyzed!"
+    return redirect(f"/prompts/{prompt_id}")
 
 @app.route("/prompts", methods=["GET"])
 def view_prompt_analyses():
@@ -134,7 +129,53 @@ def view_prompt_analyses():
             """
     return html
 
+@app.route("/prompts/<int:prompt_id>")
+def view_prompt(prompt_id):
+    prompt = get_prompt(prompt_id)
 
+    if prompt is None:
+        return 'Prompt not found', 404
+
+    prompt_id, application, prompt_text = prompt
+
+    analyses = get_analysis_details(prompt_id)
+
+    html = f"""
+    <h1>{application}</h1>
+    <p><strong>Prompt:</strong> {prompt_text}</p>
+
+    <h2>Reusable Writing</h2>
+"""
+
+    for analysis in analyses:
+        (
+            classification,
+            reason,
+            adaptation_needed,
+            source_application,
+            source_prompt,
+            chunk_text
+        ) = analysis
+
+        html += f"""
+            <hr>
+
+            <h3>{source_application}</h3>
+
+            <p><strong>{classification}</strong></p>
+
+            <p><strong>Original prompt:</strong> {source_prompt}</p>
+
+            <blockquote>{chunk_text}</blockquote>
+
+            <p><strong>Why it matches:</strong> {reason}</p>
+
+            <p><strong>How to adapt it:</strong> {adaptation_needed}</p>
+        """
+    return html
+
+    
+    
 
 if __name__ == "__main__":
     app.run(debug=True)

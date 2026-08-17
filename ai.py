@@ -165,38 +165,3 @@ Do not write a new essay.
     )
 
     return result.output_parsed
-
-
-'''def summarize_essay(prompt, response):
-    instructions = f"""
-    Analyze the application response below for future reuse in other
-    application essays.
-
-    ORIGINAL PROMPT:
-    {prompt}
-
-    RESPONSE:
-    {response}
-
-    Write one concise, information-dense paragraph optimized for semantic
-    retrieval.
-
-    Include specific experiences, the student's actions and role, outcomes,
-    reflections or changes in perspective, and themes when they are actually
-    present.
-
-    If a category is not present, simply omit it rather than stating that it
-    is missing.
-
-    Do not evaluate the quality of the writing.
-    Do not invent information.
-    Do not exceed 80 words.
-    Do not begin/end with questions or affirmations: ONLY the content summary.
-    """
-
-    result = client.responses.create(
-        model="gpt-5-nano",
-        input=instructions
-    )
-
-    return result.output_text'''
