@@ -213,7 +213,7 @@ def save_analysis(prompt_id, analysis):
                 match.chunk_index,
                 match.classification,
                 match.reason,
-                match.adaptation_needed
+                match.adaptation_needed or ""
             )
         )
     conn.commit()

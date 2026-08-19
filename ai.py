@@ -23,11 +23,17 @@ class ChunkMatch(BaseModel):
     reason: str
     adaptation_needed: Optional[str]
 
-class MatchAnalysis(BaseModel):
-    matches: List[ChunkMatch]
+class EssayMatch(BaseModel):
+    essay_id: int
+    classification: Literal["REUSE", "ADAPT"]
+    reason: str
+    adaptation_needed: str
 
-def rank_essays(new_prompt, essays):
-    prompt_embedding = create_embedding(new_prompt)
+class MatchAnalysis(BaseModel):
+    essay_matches: List[EssayMatch]
+    chunk_matches: List[ChunkMatch]
+
+def rank_essays(prompt_embedding, essays):
     ranked = []
 
     for essay in essays:
@@ -112,13 +118,14 @@ def cosine_similarity(vec_a, vec_b): #compare embeddings
 
     return dot_product / (magnitude_a * magnitude_b)
 
-def analyze_matches(new_prompt, ranked_chunks):
+def analyze_matches(new_prompt, ranked_essays, ranked_chunks):
     top_chunks = ranked_chunks[:5]
+    top_essays = ranked_essays[:3]
 
-    retrieved_text = ""
+    retrieved_chunks = ""
 
     for chunk in top_chunks:
-        retrieved_text += f"""
+        retrieved_chunks += f"""
 ESSAY ID: {chunk["essay_id"]}
 CHUNK {chunk["chunk_index"]}:
 {chunk["text"]}
@@ -126,34 +133,54 @@ CHUNK {chunk["chunk_index"]}:
 ---
 """
 
+    retrieved_essays = ""
+
+    for essay in top_essays:
+        retrieved_essays += f"""
+ESSAY ID: {essay["id"]}
+ORIGINAL PROMPT: {essay["prompt"]}
+RESPONSE:
+{essay["response"]}
+
+---
+"""
+
     instructions = f"""
-You are helping a student reuse material from their previous application
-essays for a new application prompt.
+You are helping a student identify writing from previous application
+essays that may be reused for a new application prompt.
 
 NEW PROMPT:
 {new_prompt}
 
-RETRIEVED PREVIOUS WRITING:
-{retrieved_text}
+CANDIDATE WHOLE ESSAYS:
+{retrieved_essays}
 
-Analyze which retrieved material is genuinely useful for answering the
-new prompt.
+CANDIDATE PASSAGES:
+{retrieved_chunks}
 
-For each useful piece of material:
-- identify the essay ID and chunk
-- classify it as REUSE, ADAPT, or WEAK
-- explain briefly why it is relevant
-- explain what would need to change for the new prompt
+Evaluate whole essays and individual passages independently.
 
-Only include material classified as REUSE or ADAPT.
+WHOLE ESSAYS:
+Recommend a whole essay when its overall experience, narrative, or
+argument could serve as the basis for answering the new prompt.
 
-REUSE means the existing material directly addresses an important part
-of the new prompt and could be reused with relatively minor changes.
+PASSAGES:
+Recommend an individual passage when that specific material is useful
+for answering the new prompt. A passage may be useful even when its
+overall source essay is not.
 
-ADAPT means the underlying experience or idea is useful, but its framing,
-emphasis, or reflection needs meaningful changes.
+For both:
+REUSE means the material already directly addresses an important part
+of the new prompt and requires relatively minor changes.
 
-Do not include weak or irrelevant material.
+ADAPT means the underlying experience or material is useful, but its
+framing, emphasis, structure, or reflection requires meaningful changes.
+
+Only return useful material. Do not return weak or irrelevant matches.
+
+A whole essay recommendation and passage recommendations from that same
+essay may both be returned when appropriate.
+
 Do not invent experiences, details, outcomes, or reflections.
 Do not write a new essay.
 """

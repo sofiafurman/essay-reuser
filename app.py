@@ -9,7 +9,7 @@ from database import (
 
 from ai import (
     create_embedding, split_essay, create_embeddings,
-    rank_chunks, analyze_matches
+    rank_chunks, analyze_matches, rank_essays
 )
 app = Flask(__name__)
 
@@ -91,12 +91,58 @@ def create_prompt():
     prompt_id = save_prompt(application, prompt, embedding)
 
     chunks = get_chunks()
-    ranked_chunks = rank_chunks(embedding, chunks)
-    
-    analysis = analyze_matches(prompt, ranked_chunks)
+    essays = get_essays()
 
-    save_analysis(prompt_id, analysis)
-    return redirect(f"/prompts/{prompt_id}")
+    ranked_essays = rank_essays(embedding, essays)
+    ranked_chunks = rank_chunks(embedding, chunks)
+
+    #debugging start
+    print("\nWHOLE ESSAYS")
+    for essay in ranked_essays:
+        print(
+            essay["application"],
+            round(essay["similarity_score"], 3)
+        )
+
+    print("\nCHUNKS")
+    for chunk in ranked_chunks[:5]:
+        print(
+            "Essay", chunk["essay_id"],
+            "Chunk", chunk["chunk_index"],
+            round(chunk["similarity_score"], 3)
+        )
+    #debugging end
+    
+    analysis = analyze_matches(
+    prompt,
+    ranked_essays,
+    ranked_chunks
+)
+
+    #save_analysis(prompt_id, analysis) TODO: temp
+
+    print("\nESSAY RECOMMENDATIONS")
+
+    for match in analysis.essay_matches:
+        print(
+            match.essay_id,
+            match.classification,
+            match.reason
+        )
+
+    print("\nPASSAGE RECOMMENDATIONS")
+
+    for match in analysis.chunk_matches:
+        print(
+            match.essay_id,
+            match.chunk_index,
+            match.classification,
+            match.reason
+        )
+
+    #return redirect(f"/prompts/{prompt_id}") TODO temp
+
+    return "Analysis complete - check terminal"
 
 @app.route("/prompts", methods=["GET"])
 def view_prompt_analyses():
