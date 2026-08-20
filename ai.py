@@ -19,7 +19,7 @@ client = OpenAI(
 class ChunkMatch(BaseModel):
     essay_id: int
     chunk_index: int
-    classification: Literal["REUSE", "ADAPT"]
+    classification: Literal["REUSE", "ADAPT", "SUPPORTING"]
     reason: str
     adaptation_needed: Optional[str]
 
@@ -160,23 +160,45 @@ CANDIDATE PASSAGES:
 
 Evaluate whole essays and individual passages independently.
 
-WHOLE ESSAYS:
-Recommend a whole essay when its overall experience, narrative, or
-argument could serve as the basis for answering the new prompt.
+WWHOLE ESSAYS:
+
+REUSE means the overall essay already substantially answers the new
+prompt and could serve as its basis with relatively minor changes.
+
+ADAPT means the existing experience genuinely contains evidence that can
+answer the new prompt, but the framing, structure, emphasis, or reflection
+would need meaningful changes.
+
+Do not classify material as ADAPT merely because it could hypothetically
+be reframed to address the prompt. The necessary connection must already
+be supported by details in the student's existing writing.
+
+If answering the new prompt would require inventing a new motivation,
+impact, lesson, relationship, outcome, or significance, do not return
+the material.
+
+Only recommend a whole essay if the overall essay is genuinely useful.
+Do not return weak or irrelevant essays.
+
 
 PASSAGES:
-Recommend an individual passage when that specific material is useful
-for answering the new prompt. A passage may be useful even when its
-overall source essay is not.
 
-For both:
-REUSE means the material already directly addresses an important part
-of the new prompt and requires relatively minor changes.
+REUSE means the passage itself directly provides material needed to
+answer the new prompt and could be reused with relatively minor changes.
 
-ADAPT means the underlying experience or material is useful, but its
-framing, emphasis, structure, or reflection requires meaningful changes.
+ADAPT requires that the useful connection already exists in the passage
+or its source essay. Do not recommend a passage based on a hypothetical
+connection that is not supported by the student's writing.
 
-Only return useful material. Do not return weak or irrelevant matches.
+SUPPORTING means the passage is useful as context, setup, transition, or
+support for a recommended whole essay, but would not be worth recommending
+as reusable material on its own.
+
+Only return passages that are REUSE, ADAPT, or meaningfully SUPPORTING.
+Do not return irrelevant passages.
+
+A passage from an essay may be useful even if the whole essay is not
+recommended.
 
 A whole essay recommendation and passage recommendations from that same
 essay may both be returned when appropriate.

@@ -37,18 +37,31 @@ def init_db():
             """)
 
     conn.execute("""
-            CREATE TABLE IF NOT EXISTS analyses (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                prompt_id INTEGER NOT NULL,
-                essay_id INTEGER NOT NULL,
-                chunk_index INTEGER NOT NULL,
-                classification TEXT NOT NULL,
-                reason TEXT NOT NULL,
-                adaptation_needed TEXT NOT NULL,
-                FOREIGN KEY (prompt_id) REFERENCES prompts(id),
-                FOREIGN KEY (essay_id) REFERENCES essays(id)
-            )
-                """)
+    CREATE TABLE IF NOT EXISTS essay_analyses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        prompt_id INTEGER NOT NULL,
+        essay_id INTEGER NOT NULL,
+        classification TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        adaptation_needed TEXT,
+        FOREIGN KEY (prompt_id) REFERENCES prompts(id),
+        FOREIGN KEY (essay_id) REFERENCES essays(id)
+    )
+""")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS chunk_analyses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            prompt_id INTEGER NOT NULL,
+            essay_id INTEGER NOT NULL,
+            chunk_index INTEGER NOT NULL,
+            classification TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            adaptation_needed TEXT,
+            FOREIGN KEY (prompt_id) REFERENCES prompts(id),
+            FOREIGN KEY (essay_id) REFERENCES essays(id)
+        )
+    """)
 
     conn.commit()
     conn.close()
@@ -194,10 +207,31 @@ def save_chunks(essay_id, chunks, embeddings):
 def save_analysis(prompt_id, analysis):
     conn = sqlite3.connect(db_path)
 
-    for match in analysis.matches:
+    for match in analysis.essay_matches:
         conn.execute(
             """
-            INSERT INTO analyses (
+            INSERT INTO essay_analyses (
+                prompt_id,
+                essay_id,
+                classification,
+                reason,
+                adaptation_needed
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                prompt_id,
+                match.essay_id,
+                match.classification,
+                match.reason,
+                match.adaptation_needed
+            )
+        )
+
+    for match in analysis.chunk_matches:
+        conn.execute(
+            """
+            INSERT INTO chunk_analyses (
                 prompt_id,
                 essay_id,
                 chunk_index,
@@ -213,9 +247,10 @@ def save_analysis(prompt_id, analysis):
                 match.chunk_index,
                 match.classification,
                 match.reason,
-                match.adaptation_needed or ""
+                match.adaptation_needed
             )
         )
+
     conn.commit()
     conn.close()
         
@@ -229,3 +264,54 @@ def get_chunks():
     conn.close()
 
     return chunks
+
+def get_essay_analysis_details(prompt_id):
+    conn = sqlite3.connect(db_path)
+
+    analyses = conn.execute(
+        """
+        SELECT
+            ea.essay_id,
+            ea.classification,
+            ea.reason,
+            ea.adaptation_needed,
+            e.application,
+            e.prompt,
+            e.response
+        FROM essay_analyses ea
+        JOIN essays e
+            ON ea.essay_id = e.id
+        WHERE ea.prompt_id = ?
+        """,
+        (prompt_id,)
+    ).fetchall()
+
+    conn.close()
+
+    return analyses
+
+def get_chunk_analysis_details(prompt_id, essay_id):
+    conn = sqlite3.connect(db_path)
+
+    analyses = conn.execute(
+        """
+        SELECT
+            ca.chunk_index,
+            ca.classification,
+            ca.reason,
+            ca.adaptation_needed,
+            ec.text
+        FROM chunk_analyses ca
+        JOIN essay_chunks ec
+            ON ca.essay_id = ec.essay_id
+            AND ca.chunk_index = ec.chunk_index
+        WHERE ca.prompt_id = ?
+            AND ca.essay_id = ?
+        ORDER BY ca.chunk_index
+        """,
+        (prompt_id, essay_id)
+    ).fetchall()
+
+    conn.close()
+
+    return analyses

@@ -4,7 +4,7 @@ from flask import Flask, request, redirect
 from database import (
     init_db, save_essays, get_essays, save_chunks,
     save_prompt, get_prompts, get_chunks, save_analysis,
-    get_analyses, get_prompt, get_analysis_details
+    get_analyses, get_prompt, get_essay_analysis_details, get_chunk_analysis_details,
 )
 
 from ai import (
@@ -119,7 +119,7 @@ def create_prompt():
     ranked_chunks
 )
 
-    #save_analysis(prompt_id, analysis) TODO: temp
+    save_analysis(prompt_id, analysis)
 
     print("\nESSAY RECOMMENDATIONS")
 
@@ -140,9 +140,9 @@ def create_prompt():
             match.reason
         )
 
-    #return redirect(f"/prompts/{prompt_id}") TODO temp
+    return redirect(f"/prompts/{prompt_id}")  
 
-    return "Analysis complete - check terminal"
+#TODO: still need to display a passage that not part of reccomended essay, and essay without a reccomended passage
 
 @app.route("/prompts", methods=["GET"])
 def view_prompt_analyses():
@@ -180,48 +180,88 @@ def view_prompt(prompt_id):
     prompt = get_prompt(prompt_id)
 
     if prompt is None:
-        return 'Prompt not found', 404
+        return "Prompt not found", 404
 
     prompt_id, application, prompt_text = prompt
 
-    analyses = get_analysis_details(prompt_id)
+    essay_analyses = get_essay_analysis_details(prompt_id)
 
     html = f"""
-    <h1>{application}</h1>
-    <p><strong>Prompt:</strong> {prompt_text}</p>
+        <h1>{application}</h1>
+        <p><strong>Prompt:</strong> {prompt_text}</p>
 
-    <h2>Reusable Writing</h2>
-"""
+        <h2>Reusable Writing</h2>
+    """
 
-    for analysis in analyses:
+    for essay_analysis in essay_analyses:
         (
+            essay_id,
             classification,
             reason,
             adaptation_needed,
             source_application,
             source_prompt,
-            chunk_text
-        ) = analysis
+            source_response
+        ) = essay_analysis
 
         html += f"""
             <hr>
 
             <h3>{source_application}</h3>
 
-            <p><strong>{classification}</strong></p>
+            <p><strong>Whole Essay: {classification}</strong></p>
 
             <p><strong>Original prompt:</strong> {source_prompt}</p>
 
-            <blockquote>{chunk_text}</blockquote>
-
-            <p><strong>Why it matches:</strong> {reason}</p>
-
-            <p><strong>How to adapt it:</strong> {adaptation_needed}</p>
+            <p><strong>Why this essay matches:</strong> {reason}</p>
         """
-    return html
 
-    
-    
+        if adaptation_needed:
+            html += f"""
+                <p>
+                    <strong>How to adapt the essay:</strong>
+                    {adaptation_needed}
+                </p>
+            """
+
+        html += """
+            <h4>Relevant Passages</h4>
+        """
+
+        chunk_analyses = get_chunk_analysis_details(
+            prompt_id,
+            essay_id
+        )
+
+        for chunk_analysis in chunk_analyses:
+            (
+                chunk_index,
+                chunk_classification,
+                chunk_reason,
+                chunk_adaptation,
+                chunk_text
+            ) = chunk_analysis
+
+            html += f"""
+                <blockquote>{chunk_text}</blockquote>
+
+                <p><strong>{chunk_classification}</strong></p>
+
+                <p>
+                    <strong>Why this passage:</strong>
+                    {chunk_reason}
+                </p>
+            """
+
+            if chunk_adaptation:
+                html += f"""
+                    <p>
+                        <strong>How to adapt:</strong>
+                        {chunk_adaptation}
+                    </p>
+                """
+
+    return html
 
 if __name__ == "__main__":
     app.run(debug=True)
