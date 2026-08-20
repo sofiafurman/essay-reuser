@@ -82,6 +82,22 @@ def get_prompt(prompt_id):
 
     return prompt
 
+def get_essay(essay_id):
+    conn = sqlite3.connect(db_path)
+
+    prompt = conn.execute(
+        """
+        SELECT id, application, prompt, response
+        FROM essays
+        WHERE id = ?
+        """,
+        (essay_id,)
+    ).fetchone()
+
+    conn.close()
+
+    return prompt
+
 def get_analysis_details(prompt_id):
     conn = sqlite3.connect(db_path)
 
@@ -270,20 +286,28 @@ def get_essay_analysis_details(prompt_id):
 
     analyses = conn.execute(
         """
-        SELECT
-            ea.essay_id,
+        SELECT DISTINCT
+            e.id,
             ea.classification,
             ea.reason,
             ea.adaptation_needed,
             e.application,
             e.prompt,
             e.response
-        FROM essay_analyses ea
-        JOIN essays e
-            ON ea.essay_id = e.id
-        WHERE ea.prompt_id = ?
+        FROM essays e
+
+        LEFT JOIN essay_analyses ea
+            ON e.id = ea.essay_id
+            AND ea.prompt_id = ?
+
+        LEFT JOIN chunk_analyses ca
+            ON e.id = ca.essay_id
+            AND ca.prompt_id = ?
+
+        WHERE ea.id IS NOT NULL
+            OR ca.id IS NOT NULL
         """,
-        (prompt_id,)
+        (prompt_id, prompt_id)
     ).fetchall()
 
     conn.close()
@@ -315,3 +339,29 @@ def get_chunk_analysis_details(prompt_id, essay_id):
     conn.close()
 
     return analyses
+
+def delete_essay(essay_id):
+    conn = sqlite3.connect(db_path)
+
+    conn.execute(
+        "DELETE FROM chunk_analyses WHERE essay_id = ?",
+        (essay_id,)
+    )
+
+    conn.execute(
+        "DELETE FROM essay_analyses WHERE essay_id = ?",
+        (essay_id,)
+    )
+
+    conn.execute(
+        "DELETE FROM essay_chunks WHERE essay_id = ?",
+        (essay_id,)
+    )
+
+    conn.execute(
+        "DELETE FROM essays WHERE id = ?",
+        (essay_id,)
+    )
+
+    conn.commit()
+    conn.close()

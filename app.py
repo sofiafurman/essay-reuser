@@ -4,7 +4,8 @@ from flask import Flask, request, redirect
 from database import (
     init_db, save_essays, get_essays, save_chunks,
     save_prompt, get_prompts, get_chunks, save_analysis,
-    get_analyses, get_prompt, get_essay_analysis_details, get_chunk_analysis_details,
+    get_prompt, get_essay_analysis_details, get_chunk_analysis_details,
+    get_essay, delete_essay
 )
 
 from ai import (
@@ -17,7 +18,16 @@ init_db()
 
 @app.route("/")
 def home():
+
     return """
+        <nav>
+            <a href="/">Home</a> |
+            <a href="/essays">Essay Library</a> |
+            <a href="/prompts">Prompt Library</a>
+        </nav>
+
+        <hr>
+
         <h1>Essay Reuser</h1>
         
         <form method="POST" action="/essays">
@@ -53,7 +63,17 @@ def home():
 def view_essays():
     essays = get_essays()
 
-    html = "<h1>My Library</h1>"
+    html = """
+        <nav>
+            <a href="/">Home</a> |
+            <a href="/essays">Essay Library</a> |
+            <a href="/prompts">Prompt Library</a>
+        </nav>
+
+        <hr>
+
+        <h1>Essay Library</h1>
+    """
 
     for essay in essays:
         essay_id, application, prompt, response, embedding = essay
@@ -63,9 +83,49 @@ def view_essays():
             <p><strong>Application:</strong> {application}</p>
             <p><strong>Prompt:</strong> {prompt}</p>
             <p><strong>Response:</strong> {response}</p>
+            <a href="/essays/{essay_id}">View Essay Page</a>
         """
     return html
 
+@app.route("/essays/<int:essay_id>")
+def view_essay(essay_id):
+    essay = get_essay(essay_id)
+
+    if essay is None:
+        return "Essay not found", 404
+
+    essay_id, application, prompt_text, response = essay
+    
+
+    html = """
+            <nav>
+                <a href="/">Home</a> |
+                <a href="/essays">Essay Library</a> |
+                <a href="/prompts">Prompt Library</a>
+            </nav>
+    
+            <hr>
+        """
+    
+    html += f"""
+        <h1>{application}</h1>
+        <p><strong>Prompt:</strong> {prompt_text}</p>
+
+        <p>{response}</p>
+    """
+
+    html += f"""
+    <form method="POST" action="/essays/{essay_id}/delete">
+        <button type="submit">[Delete Essay]</button>
+    </form>
+    """
+
+    html += f"""
+    <p><a href="/essays/{essay_id}/edit">Edit Essay</a></p>
+    """
+
+    return html
+    
 @app.route("/essays", methods=["POST"])
 def create_essay():
     application = request.form["application"]
@@ -80,7 +140,61 @@ def create_essay():
     chunk_embeddings = create_embeddings(chunks)
     save_chunks(essay_id, chunks, chunk_embeddings)
 
-    return "Essay saved!"
+    return redirect(f"/essays/{essay_id}")  
+
+@app.route("/essays/<int:essay_id>/delete", methods=["POST"])
+def delete_essay_route(essay_id):
+    delete_essay(essay_id)
+
+    return redirect("/essays")
+
+@app.route("/essays/<int:essay_id>/edit", methods=["GET"])
+def edit_essay_route(essay_id):
+    essay = get_essay(essay_id)
+
+    if essay is None:
+        return "Essay not found", 404
+
+    essay_id, application, prompt_text, response = essay
+
+    html = f"""
+        <nav>
+            <a href="/">Home</a> |
+            <a href="/essays">Essay Library</a> |
+            <a href="/prompts">Prompt Library</a>
+        </nav>
+
+        <hr>
+
+        <h1>Edit Essay</h1>
+
+        <form method="POST" action="/essays/{essay_id}/edit">
+
+            <label>Application</label><br>
+            <input
+                name="application"
+                value="{application}"
+                required
+            ><br><br>
+
+            <label>Prompt</label><br>
+            <textarea name="prompt" required>{prompt_text}</textarea>
+            <br><br>
+
+            <label>Response</label><br>
+            <textarea
+                name="response"
+                rows="15"
+                cols="70"
+                required
+            >{response}</textarea>
+            <br><br>
+
+            <button type="submit">Save Changes</button>
+        </form>
+    """
+
+    return html
 
 @app.route("/prompts", methods=["POST"])
 def create_prompt():
@@ -142,37 +256,35 @@ def create_prompt():
 
     return redirect(f"/prompts/{prompt_id}")  
 
-#TODO: still need to display a passage that not part of reccomended essay, and essay without a reccomended passage
-
 @app.route("/prompts", methods=["GET"])
-def view_prompt_analyses():
+def view_prompts():
     prompts = get_prompts()
 
+    html = """
+        <nav>
+            <a href="/">Home</a> |
+            <a href="/essays">Essay Library</a> |
+            <a href="/prompts">Prompt Library</a>
+        </nav>
 
-    html = "<h1>My Prompt Analyses</h1>"
+        <hr>
+
+        <h1>Prompt Library</h1>
+    """
 
     for prompt in prompts:
         prompt_id, application, prompt_text, embedding_json = prompt
 
-        analyses = get_analyses(prompt_id)
-
         html += f"""
             <hr>
-            <p><strong>Application:</strong> {application}</p>
-            <p><strong>Prompt:</strong> {prompt_text}</p>
-            
+
+            <h3>{application}</h3>
+
+            <p>{prompt_text}</p>
+
+            <a href="/prompts/{prompt_id}">View Analysis</a>
         """
 
-        for analysis in analyses:
-            essay_id, chunk_index, classification, reason, adaptation_needed = analysis
-            html += f"""
-                <p>
-                    <strong>{classification}</strong><br>
-                    Essay {essay_id}, Chunk {chunk_index}<br>
-                    {reason}<br>
-                    <strong>Adaptation:</strong> {adaptation_needed}
-                </p>
-            """
     return html
 
 @app.route("/prompts/<int:prompt_id>")
@@ -186,7 +298,16 @@ def view_prompt(prompt_id):
 
     essay_analyses = get_essay_analysis_details(prompt_id)
 
-    html = f"""
+    html = """
+            <nav>
+                <a href="/">Home</a> |
+                <a href="/essays">Essay Library</a> |
+                <a href="/prompts">Prompt Library</a>
+            </nav>
+    
+            <hr>
+        """
+    html += f"""
         <h1>{application}</h1>
         <p><strong>Prompt:</strong> {prompt_text}</p>
 
@@ -205,24 +326,27 @@ def view_prompt(prompt_id):
         ) = essay_analysis
 
         html += f"""
-            <hr>
+        <hr>
 
-            <h3>{source_application}</h3>
+        <h3>{source_application}</h3>
 
-            <p><strong>Whole Essay: {classification}</strong></p>
+        <p><strong>Original prompt:</strong> {source_prompt}</p>
+    """
 
-            <p><strong>Original prompt:</strong> {source_prompt}</p>
-
-            <p><strong>Why this essay matches:</strong> {reason}</p>
-        """
-
-        if adaptation_needed:
+        if classification:
             html += f"""
-                <p>
-                    <strong>How to adapt the essay:</strong>
-                    {adaptation_needed}
-                </p>
+                <p><strong>Whole Essay: {classification}</strong></p>
+
+                <p><strong>Why this essay matches:</strong> {reason}</p>
             """
+
+            if adaptation_needed:
+                html += f"""
+                    <p>
+                        <strong>How to adapt the essay:</strong>
+                        {adaptation_needed}
+                    </p>
+                """
 
         html += """
             <h4>Relevant Passages</h4>
