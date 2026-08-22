@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}{{ prompt[1] }} Analysis{% endblock %}
+
+{% block content %}
+
+<h1>{{ prompt[1] }}</h1>
+
+<p class="new-prompt">
+    <strong>Prompt:</strong>
+    {{ prompt[2] }}
+</p>
+
+<h2>Reusable Writing</h2>
+
+
+{% if not results %}
+
+    <div class="card">
+        <p>No useful matches were found in your essay library.</p>
+    </div>
+
+{% else %}
+
+    {% for result in results %}
+
+        <section class="result-card">
+
+            <h3>{{ result.essay[4] }}</h3>
+
+            <p>
+                <strong>Original prompt:</strong>
+                {{ result.essay[5] }}
+            </p>
+
+
+            {% if result.essay[1] %}
+
+                <div class="whole-essay-result">
+
+                    <p class="classification">
+                        Whole Essay: {{ result.essay[1] }}
+                    </p>
+
+                    <p>
+                        <strong>Why this essay matches:</strong>
+                        {{ result.essay[2] }}
+                    </p>
+
+                    {% if result.essay[3] %}
+                        <p>
+                            <strong>How to adapt the essay:</strong>
+                            {{ result.essay[3] }}
+                        </p>
+                    {% endif %}
+
+                </div>
+
+            {% endif %}
+
+
+            {% if result.chunks %}
+
+                <h4>Relevant Passages</h4>
+
+                {% for chunk in result.chunks %}
+
+                    <div class="passage">
+
+                        <blockquote>
+                            {{ chunk[4] }}
+                        </blockquote>
+
+                        <p class="classification">
+                            {{ chunk[1] }}
+                        </p>
+
+                        <p>
+                            <strong>Why this passage:</strong>
+                            {{ chunk[2] }}
+                        </p>
+
+                        {% if chunk[3] %}
+                            <p>
+                                <strong>How to adapt:</strong>
+                                {{ chunk[3] }}
+                            </p>
+                        {% endif %}
+
+                    </div>
+
+                {% endfor %}
+
+            {% endif %}
+
+        </section>
+
+    {% endfor %}
+
+{% endif %}
+
+
+<div class="actions">
+    <form method="POST" action="/prompts/{{ prompt[0] }}/delete">
+        <button type="submit">Delete Prompt</button>
+    </form>
+</div>
+
+{% endblock %}

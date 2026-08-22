@@ -11,7 +11,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         application TEXT NOT NULL,
         prompt TEXT NOT NULL,
-        response TEXT,
+        response TEXT NOT NULL,
         embedding TEXT
     )
     """)
@@ -362,6 +362,101 @@ def delete_essay(essay_id):
         "DELETE FROM essays WHERE id = ?",
         (essay_id,)
     )
+
+    conn.commit()
+    conn.close()
+
+def delete_prompt(prompt_id):
+    conn = sqlite3.connect(db_path)
+
+    conn.execute(
+        "DELETE FROM essay_analyses WHERE prompt_id = ?",
+        (prompt_id,)
+    )
+
+    conn.execute(
+        "DELETE FROM chunk_analyses WHERE prompt_id = ?",
+        (prompt_id,)
+    )
+
+    conn.execute(
+        "DELETE FROM prompts WHERE id = ?",
+        (prompt_id,)
+    )
+
+    conn.commit()
+    conn.close()
+
+def update_essay(
+    essay_id,
+    application,
+    prompt,
+    response,
+    embedding,
+    chunks,
+    chunk_embeddings
+):
+    conn = sqlite3.connect(db_path)
+
+    # Old analyses involving this version are no longer reliable
+    conn.execute(
+        "DELETE FROM essay_analyses WHERE essay_id = ?",
+        (essay_id,)
+    )
+
+    conn.execute(
+        "DELETE FROM chunk_analyses WHERE essay_id = ?",
+        (essay_id,)
+    )
+
+    # Replace old chunks
+    conn.execute(
+        "DELETE FROM essay_chunks WHERE essay_id = ?",
+        (essay_id,)
+    )
+
+    embedding_json = json.dumps(embedding)
+
+    conn.execute(
+        """
+        UPDATE essays
+        SET application = ?,
+            prompt = ?,
+            response = ?,
+            embedding = ?
+        WHERE id = ?
+        """,
+        (
+            application,
+            prompt,
+            response,
+            embedding_json,
+            essay_id
+        )
+    )
+
+    for i, (chunk, chunk_embedding) in enumerate(
+        zip(chunks, chunk_embeddings)
+    ):
+        chunk_embedding_json = json.dumps(chunk_embedding)
+
+        conn.execute(
+            """
+            INSERT INTO essay_chunks (
+                essay_id,
+                chunk_index,
+                text,
+                embedding
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                essay_id,
+                i,
+                chunk,
+                chunk_embedding_json
+            )
+        )
 
     conn.commit()
     conn.close()

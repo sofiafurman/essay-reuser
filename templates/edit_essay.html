@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Essay{% endblock %}
+
+{% block content %}
+
+<h1>Edit Essay</h1>
+
+<div class="card">
+    <form method="POST" action="/essays/{{ essay[0] }}/edit">
+
+        <label>Application</label><br>
+        <input
+            name="application"
+            value="{{ essay[1] }}"
+            required
+        >
+        <br><br>
+
+        <label>Prompt</label><br>
+        <textarea name="prompt" required>{{ essay[2] }}</textarea>
+        <br><br>
+
+        <label>Response</label><br>
+        <textarea
+            name="response"
+            rows="15"
+            cols="70"
+            required
+        >{{ essay[3] }}</textarea>
+        <br><br>
+
+        <button type="submit">Save Changes</button>
+
+    </form>
+</div>
+
+{% endblock %}

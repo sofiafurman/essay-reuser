@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}{{ essay[1] }}{% endblock %}
+
+{% block content %}
+
+<h1>{{ essay[1] }}</h1>
+
+<div class="card">
+    <p>
+        <strong>Original Prompt</strong>
+    </p>
+
+    <p>{{ essay[2] }}</p>
+
+    <hr>
+
+    <p class="essay-response">
+        {{ essay[3] }}
+    </p>
+</div>
+
+<div class="actions">
+    <a
+        class="button"
+        href="/essays/{{ essay[0] }}/edit"
+    >
+        Edit Essay
+    </a>
+
+    <form
+        method="POST"
+        action="/essays/{{ essay[0] }}/delete"
+    >
+        <button type="submit">Delete Essay</button>
+    </form>
+</div>
+
+{% endblock %}

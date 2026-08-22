@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Essay Library{% endblock %}
+
+{% block content %}
+
+<h1>Essay Library</h1>
+
+{% if not essays %}
+    <p>You haven't added any essays yet.</p>
+{% endif %}
+
+{% for essay in essays %}
+
+    <div class="library-item">
+        <h3>{{ essay[1] }}</h3>
+
+        <p>
+            <strong>Prompt:</strong>
+            {{ essay[2] }}
+        </p>
+
+        <a class="button" href="/essays/{{ essay[0] }}">
+            View Essay
+        </a>
+    </div>
+
+{% endfor %}
+
+{% endblock %}

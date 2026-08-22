@@ -1,11 +1,13 @@
-from flask import Flask, request, redirect
-
+from flask import(
+    Flask, request, redirect,
+    render_template
+)
 
 from database import (
     init_db, save_essays, get_essays, save_chunks,
     save_prompt, get_prompts, get_chunks, save_analysis,
     get_prompt, get_essay_analysis_details, get_chunk_analysis_details,
-    get_essay, delete_essay
+    get_essay, delete_essay, update_essay, delete_prompt
 )
 
 from ai import (
@@ -18,74 +20,16 @@ init_db()
 
 @app.route("/")
 def home():
-
-    return """
-        <nav>
-            <a href="/">Home</a> |
-            <a href="/essays">Essay Library</a> |
-            <a href="/prompts">Prompt Library</a>
-        </nav>
-
-        <hr>
-
-        <h1>Essay Reuser</h1>
-        
-        <form method="POST" action="/essays">
-            <label>Application</label><br>
-            <input name=application required><br><br>
-
-            <label>Prompt</label><br>
-            <textarea name=prompt required></textarea><br><br>
-
-            <label>Response</label><br>
-            <textarea name="response" rows="10" cols="60"></textarea>
-
-            <button type="submit">Save Essay</button>
-        </form>
-
-        <hr>
-
-        <h2>Add New Prompt</h2>
-
-        <form method="POST" action="/prompts">
-            <label>Application</label><br>
-            <input name="application" required><br><br>
-
-            <label>Prompt</label><br>
-            <textarea name="prompt" required></textarea><br><br>
-
-            <button type="submit">Analyze Prompt</button>
-        </form>
-    
-    """
+    return render_template("home.html")
 
 @app.route("/essays", methods=["GET"])
 def view_essays():
     essays = get_essays()
 
-    html = """
-        <nav>
-            <a href="/">Home</a> |
-            <a href="/essays">Essay Library</a> |
-            <a href="/prompts">Prompt Library</a>
-        </nav>
-
-        <hr>
-
-        <h1>Essay Library</h1>
-    """
-
-    for essay in essays:
-        essay_id, application, prompt, response, embedding = essay
-
-        html += f"""
-            <hr>
-            <p><strong>Application:</strong> {application}</p>
-            <p><strong>Prompt:</strong> {prompt}</p>
-            <p><strong>Response:</strong> {response}</p>
-            <a href="/essays/{essay_id}">View Essay Page</a>
-        """
-    return html
+    return render_template(
+        "essays.html",
+        essays=essays
+    )
 
 @app.route("/essays/<int:essay_id>")
 def view_essay(essay_id):
@@ -94,50 +38,31 @@ def view_essay(essay_id):
     if essay is None:
         return "Essay not found", 404
 
-    essay_id, application, prompt_text, response = essay
-    
-
-    html = """
-            <nav>
-                <a href="/">Home</a> |
-                <a href="/essays">Essay Library</a> |
-                <a href="/prompts">Prompt Library</a>
-            </nav>
-    
-            <hr>
-        """
-    
-    html += f"""
-        <h1>{application}</h1>
-        <p><strong>Prompt:</strong> {prompt_text}</p>
-
-        <p>{response}</p>
-    """
-
-    html += f"""
-    <form method="POST" action="/essays/{essay_id}/delete">
-        <button type="submit">[Delete Essay]</button>
-    </form>
-    """
-
-    html += f"""
-    <p><a href="/essays/{essay_id}/edit">Edit Essay</a></p>
-    """
-
-    return html
+    return render_template(
+        "essay.html",
+        essay=essay
+    )
     
 @app.route("/essays", methods=["POST"])
 def create_essay():
-    application = request.form["application"]
-    prompt = request.form["prompt"]
-    response = request.form["response"]
-    
-    embedding = create_embedding(response) #whole essay
+    application = request.form["application"].strip()
+    prompt = request.form["prompt"].strip()
+    response = request.form["response"].strip()
+
+    if not application or not prompt or not response:
+        return "Application, prompt, and response are required.", 400
+
+    try:
+        embedding = create_embedding(response) #whole essay
+
+        chunks = split_essay(response)
+        chunk_embeddings = create_embeddings(chunks)
+
+    except Exception as error:
+        print("Essay creation error:", error)
+        return "We couldn't process this essay. Please try again.", 500
 
     essay_id = save_essays(application, prompt, response, embedding)
-
-    chunks = split_essay(response)
-    chunk_embeddings = create_embeddings(chunks)
     save_chunks(essay_id, chunks, chunk_embeddings)
 
     return redirect(f"/essays/{essay_id}")  
@@ -155,60 +80,92 @@ def edit_essay_route(essay_id):
     if essay is None:
         return "Essay not found", 404
 
-    essay_id, application, prompt_text, response = essay
+    return render_template(
+        "edit_essay.html",
+        essay=essay
+    )
 
-    html = f"""
-        <nav>
-            <a href="/">Home</a> |
-            <a href="/essays">Essay Library</a> |
-            <a href="/prompts">Prompt Library</a>
-        </nav>
+@app.route("/essays/<int:essay_id>/edit", methods=["POST"])
+def edit_essay(essay_id):
 
-        <hr>
+    essay = get_essay(essay_id)
 
-        <h1>Edit Essay</h1>
+    if essay is None:
+        return "Essay not found", 404
 
-        <form method="POST" action="/essays/{essay_id}/edit">
+    application = request.form["application"].strip()
+    prompt = request.form["prompt"].strip()
+    response = request.form["response"].strip()
 
-            <label>Application</label><br>
-            <input
-                name="application"
-                value="{application}"
-                required
-            ><br><br>
+    if not application or not prompt or not response:
+        return "Application, prompt, and response are required.", 400
 
-            <label>Prompt</label><br>
-            <textarea name="prompt" required>{prompt_text}</textarea>
-            <br><br>
 
-            <label>Response</label><br>
-            <textarea
-                name="response"
-                rows="15"
-                cols="70"
-                required
-            >{response}</textarea>
-            <br><br>
+    try:
+        embedding = create_embedding(response)
 
-            <button type="submit">Save Changes</button>
-        </form>
-    """
+        chunks = split_essay(response)
+        chunk_embeddings = create_embeddings(chunks)
 
-    return html
+    except Exception as error:
+            print("Essay editing error:", error)
+            return "We couldn't process these changes. Please try again.", 500
+    
+    update_essay(
+        essay_id,
+        application,
+        prompt,
+        response,
+        embedding,
+        chunks,
+        chunk_embeddings
+    )
+
+    return redirect(f"/essays/{essay_id}")
 
 @app.route("/prompts", methods=["POST"])
 def create_prompt():
-    application = request.form["application"]
-    prompt = request.form["prompt"]
+
+    application = request.form["application"].strip()
+    prompt = request.form["prompt"].strip()
+
+    if not application or not prompt:
+        return "Application and prompt are required.", 400
     
-    embedding = create_embedding(prompt) 
+    essays = get_essays()
+    
+    if not essays:
+            return "Add at least one essay before analyzing a prompt.", 400
+    
+    try:
+        embedding = create_embedding(prompt) 
+
+        chunks = get_chunks()
+
+     
+        ranked_essays = rank_essays(embedding, essays)
+        ranked_chunks = rank_chunks(embedding, chunks)
+
+        analysis = analyze_matches(
+            prompt,
+            ranked_essays,
+            ranked_chunks
+        )
+        
+        
+
+    except Exception as error:
+        print("Analysis error:", error)
+
+        return """
+            <h1>Something went wrong</h1>
+            <p>We couldn't analyze this prompt. Please try again.</p>
+            <a href="/">Back to Home</a>
+        """, 500
+
     prompt_id = save_prompt(application, prompt, embedding)
 
-    chunks = get_chunks()
-    essays = get_essays()
 
-    ranked_essays = rank_essays(embedding, essays)
-    ranked_chunks = rank_chunks(embedding, chunks)
 
     #debugging start
     print("\nWHOLE ESSAYS")
@@ -227,11 +184,6 @@ def create_prompt():
         )
     #debugging end
     
-    analysis = analyze_matches(
-    prompt,
-    ranked_essays,
-    ranked_chunks
-)
 
     save_analysis(prompt_id, analysis)
 
@@ -260,32 +212,10 @@ def create_prompt():
 def view_prompts():
     prompts = get_prompts()
 
-    html = """
-        <nav>
-            <a href="/">Home</a> |
-            <a href="/essays">Essay Library</a> |
-            <a href="/prompts">Prompt Library</a>
-        </nav>
-
-        <hr>
-
-        <h1>Prompt Library</h1>
-    """
-
-    for prompt in prompts:
-        prompt_id, application, prompt_text, embedding_json = prompt
-
-        html += f"""
-            <hr>
-
-            <h3>{application}</h3>
-
-            <p>{prompt_text}</p>
-
-            <a href="/prompts/{prompt_id}">View Analysis</a>
-        """
-
-    return html
+    return render_template(
+        "prompts.html",
+        prompts=prompts
+    )
 
 @app.route("/prompts/<int:prompt_id>")
 def view_prompt(prompt_id):
@@ -294,98 +224,39 @@ def view_prompt(prompt_id):
     if prompt is None:
         return "Prompt not found", 404
 
-    prompt_id, application, prompt_text = prompt
-
     essay_analyses = get_essay_analysis_details(prompt_id)
 
-    html = """
-            <nav>
-                <a href="/">Home</a> |
-                <a href="/essays">Essay Library</a> |
-                <a href="/prompts">Prompt Library</a>
-            </nav>
-    
-            <hr>
-        """
-    html += f"""
-        <h1>{application}</h1>
-        <p><strong>Prompt:</strong> {prompt_text}</p>
-
-        <h2>Reusable Writing</h2>
-    """
+    results = []
 
     for essay_analysis in essay_analyses:
-        (
-            essay_id,
-            classification,
-            reason,
-            adaptation_needed,
-            source_application,
-            source_prompt,
-            source_response
-        ) = essay_analysis
-
-        html += f"""
-        <hr>
-
-        <h3>{source_application}</h3>
-
-        <p><strong>Original prompt:</strong> {source_prompt}</p>
-    """
-
-        if classification:
-            html += f"""
-                <p><strong>Whole Essay: {classification}</strong></p>
-
-                <p><strong>Why this essay matches:</strong> {reason}</p>
-            """
-
-            if adaptation_needed:
-                html += f"""
-                    <p>
-                        <strong>How to adapt the essay:</strong>
-                        {adaptation_needed}
-                    </p>
-                """
-
-        html += """
-            <h4>Relevant Passages</h4>
-        """
+        essay_id = essay_analysis[0]
 
         chunk_analyses = get_chunk_analysis_details(
             prompt_id,
             essay_id
         )
 
-        for chunk_analysis in chunk_analyses:
-            (
-                chunk_index,
-                chunk_classification,
-                chunk_reason,
-                chunk_adaptation,
-                chunk_text
-            ) = chunk_analysis
+        results.append({
+            "essay": essay_analysis,
+            "chunks": chunk_analyses
+        })
 
-            html += f"""
-                <blockquote>{chunk_text}</blockquote>
+    return render_template(
+        "prompt.html",
+        prompt=prompt,
+        results=results
+    )
 
-                <p><strong>{chunk_classification}</strong></p>
+@app.route("/prompts/<int:prompt_id>/delete", methods=["POST"])
+def delete_prompt_route(prompt_id):
+    prompt = get_prompt(prompt_id)
 
-                <p>
-                    <strong>Why this passage:</strong>
-                    {chunk_reason}
-                </p>
-            """
+    if prompt is None:
+        return "Prompt not found", 404
 
-            if chunk_adaptation:
-                html += f"""
-                    <p>
-                        <strong>How to adapt:</strong>
-                        {chunk_adaptation}
-                    </p>
-                """
+    delete_prompt(prompt_id)
 
-    return html
+    return redirect("/prompts")
 
 if __name__ == "__main__":
     app.run(debug=True)

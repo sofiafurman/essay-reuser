@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Essay Reuser</h1>
+<div class="card">
+
+    <h2>Add Essay</h2>
+
+    <form method="POST" action="/essays">
+        <label>Application</label>
+        <input name=application required>
+
+        <label>Prompt</label>
+        <textarea name=prompt required></textarea>
+
+        <label>Response</label>
+        <textarea name="response" rows="10" cols="60" required></textarea>
+
+        <button type="submit">Save Essay</button>
+    </form>
+</div>
+
+<hr>
+
+<div class="card">
+
+    <h2>Add New Prompt</h2>
+
+    <form method="POST" action="/prompts">
+        <label>Application</label>
+        <input name="application" required>
+
+        <label>Prompt</label>
+        <textarea name="prompt" required></textarea>
+
+        <button type="submit">Analyze Prompt</button>
+    </form>
+</div>
+
+
+{% endblock %}

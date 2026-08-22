@@ -1,0 +1,178 @@
+* {
+    box-sizing: border-box; /*if add padding box still same size*/
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f7f7f7;
+    color: #222;
+}
+
+main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px;
+}
+
+.navbar {
+    background: white;
+    border-bottom: 1px solid #ddd;
+    padding: 16px 24px;
+}
+
+.navbar a {
+    color: #222;
+    text-decoration: none;
+    margin-right: 24px;
+    font-weight: 600;
+}
+
+.navbar a:hover {
+    text-decoration: underline;
+}
+
+form {
+    margin-top: 20px;
+}
+
+label {
+    font-weight: 600;
+}
+
+input,
+textarea {
+    width: 100%;
+    padding: 10px;
+    margin-top: 6px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font: inherit;
+}
+
+textarea {
+    resize: vertical;
+}
+
+button,
+.button {
+    display: inline-block;
+    padding: 10px 16px;
+    border: 1px solid #aaa;
+    border-radius: 6px;
+    background: #efefef;
+    color: #222;
+    text-decoration: none;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+}
+
+.card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+form label {
+    display: block;
+    margin-top: 16px;
+}
+
+form label:first-child {
+    margin-top: 0;
+}
+
+form button {
+    margin-top: 16px;
+}
+
+.card h2 {
+    margin-top: 0;
+}
+
+.library-item {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.library-item h3 {
+    margin-top: 0;
+}
+
+.library-item p {
+    line-height: 1.5;
+}
+
+.library-item .button {
+    margin-top: 8px;
+}
+
+.essay-response {
+    white-space: pre-wrap;
+    line-height: 1.7;
+}
+
+.actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.actions form {
+    margin: 0;
+}
+
+.actions button {
+    margin-top: 0;
+}
+
+.new-prompt {
+    font-size: 1.05rem;
+    line-height: 1.6;
+    margin-bottom: 32px;
+}
+
+.result-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.result-card h3 {
+    margin-top: 0;
+}
+
+.whole-essay-result {
+    margin: 24px 0;
+    padding: 16px;
+    background: #f7f7f7;
+    border-radius: 6px;
+}
+
+.classification {
+    font-weight: 700;
+}
+
+.passage {
+    border-top: 1px solid #ddd;
+    padding: 20px 0;
+}
+
+.passage:last-child {
+    padding-bottom: 0;
+}
+
+blockquote {
+    margin: 0 0 16px 0;
+    padding-left: 16px;
+    border-left: 3px solid #bbb;
+    line-height: 1.6;
+}

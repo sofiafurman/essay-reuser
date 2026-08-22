@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Prompt Library{% endblock %}
+
+{% block content %}
+
+<h1>Prompt Library</h1>
+
+{% if not prompts %}
+    <p>You haven't analyzed any prompts yet.</p>
+{% endif %}
+
+{% for prompt in prompts %}
+
+    <div class="library-item">
+        <h3>{{ prompt[1] }}</h3>
+
+        <p>{{ prompt[2] }}</p>
+
+        <a class="button" href="/prompts/{{ prompt[0] }}">
+            View Analysis
+        </a>
+    </div>
+
+{% endfor %}
+
+{% endblock %}
